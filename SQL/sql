@@ -1,0 +1,576 @@
+-- =====================================================
+-- BASE DE DONNÉES - SYSTÈME DE RÉSERVATION DE TRAIN
+-- TRAJET: NGAOUNDÉRÉ → N'DJAMÉNA
+-- =====================================================
+
+-- Création de la base de données
+CREATE DATABASE IF NOT EXISTS train_reservation;
+USE train_reservation;
+
+-- =====================================================
+-- 1. TABLE train
+-- =====================================================
+CREATE TABLE train (
+    id_train INT PRIMARY KEY AUTO_INCREMENT,
+    numero_train VARCHAR(20) NOT NULL UNIQUE,
+    nom_train VARCHAR(100) NOT NULL,
+    capacite_totale INT DEFAULT 300,
+    categorie_classe ENUM('PREMIERE', 'SECONDE', 'WAGON_LIT') NOT NULL,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- 2. TABLE arret
+-- =====================================================
+CREATE TABLE arret (
+    id_arret INT PRIMARY KEY AUTO_INCREMENT,
+    nom VARCHAR(100) NOT NULL,
+    position_ordre INT NOT NULL,
+    id_train INT,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    FOREIGN KEY (id_train) REFERENCES train(id_train) ON DELETE SET NULL
+);
+
+-- =====================================================
+-- 3. TABLE horaire
+-- =====================================================
+CREATE TABLE horaire (
+    id_horaire INT PRIMARY KEY AUTO_INCREMENT,
+    id_arret INT NOT NULL,
+    heure_depart DATETIME,
+    heure_arrivee DATETIME,
+    date_voyage DATE NOT NULL,
+    duree_minutes INT,
+    FOREIGN KEY (id_arret) REFERENCES arret(id_arret) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- 4. TABLE wagon
+-- =====================================================
+CREATE TABLE wagon (
+    id_wagon INT PRIMARY KEY AUTO_INCREMENT,
+    numero_wagon INT NOT NULL,
+    id_train INT NOT NULL,
+    classe ENUM('PREMIERE', 'SECONDE', 'WAGON_LIT') NOT NULL,
+    capacite INT NOT NULL,
+    FOREIGN KEY (id_train) REFERENCES train(id_train) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- 5. TABLE siege
+-- =====================================================
+CREATE TABLE siege (
+    id_siege INT PRIMARY KEY AUTO_INCREMENT,
+    numero_siege INT NOT NULL,
+    id_wagon INT NOT NULL,
+    est_occupe BOOLEAN DEFAULT FALSE,
+    est_actif BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_wagon) REFERENCES wagon(id_wagon) ON DELETE CASCADE,
+    UNIQUE KEY unique_siege_wagon (numero_siege, id_wagon)
+);
+
+-- =====================================================
+-- 6. TABLE agence
+-- =====================================================
+CREATE TABLE agence (
+    id_agence INT PRIMARY KEY AUTO_INCREMENT,
+    code_agence VARCHAR(20) UNIQUE NOT NULL,
+    nom_agence VARCHAR(100) NOT NULL,
+    adresse TEXT,
+    telephone VARCHAR(20),
+    email VARCHAR(100),
+    ville VARCHAR(100) NOT NULL,
+    pays VARCHAR(50) DEFAULT 'Cameroun',
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- 7. TABLE point_vente
+-- =====================================================
+CREATE TABLE point_vente (
+    id_point_vente INT PRIMARY KEY AUTO_INCREMENT,
+    code_point_vente VARCHAR(20) UNIQUE NOT NULL,
+    nom_point_vente VARCHAR(100) NOT NULL,
+    adresse TEXT,
+    telephone VARCHAR(20),
+    id_agence INT NOT NULL,
+    est_actif BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_agence) REFERENCES agence(id_agence) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- 8. TABLE voyageur
+-- =====================================================
+CREATE TABLE voyageur (
+    id_voyageur INT PRIMARY KEY AUTO_INCREMENT,
+    numero_voyageur VARCHAR(20) UNIQUE NOT NULL,
+    nom VARCHAR(50) NOT NULL,
+    prenom VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    telephone VARCHAR(20),
+    adresse TEXT,
+    date_naissance DATE,
+    piece_identite VARCHAR(50),
+    type_piece ENUM('CNI', 'PASSEPORT', 'PERMIS') DEFAULT 'CNI',
+    date_inscription DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- 9. TABLE reservation
+-- =====================================================
+CREATE TABLE reservation (
+    id_reservation INT PRIMARY KEY AUTO_INCREMENT,
+    numero_reservation VARCHAR(30) UNIQUE NOT NULL,
+    date_reservation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    statut ENUM('EN_ATTENTE', 'CONFIRMEE', 'ANNULEE', 'REMBOURSEE', 'EXPIREE') DEFAULT 'EN_ATTENTE',
+    prix_total DECIMAL(12, 2) NOT NULL,
+    id_voyageur INT NOT NULL,
+    id_train INT NOT NULL,
+    id_arret_depart INT NOT NULL,
+    id_arret_arrivee INT NOT NULL,
+    id_siege INT NOT NULL,
+    classe_choisie ENUM('PREMIERE', 'SECONDE', 'WAGON_LIT') NOT NULL,
+    date_voyage DATE NOT NULL,
+    notes TEXT,
+    FOREIGN KEY (id_voyageur) REFERENCES voyageur(id_voyageur),
+    FOREIGN KEY (id_train) REFERENCES train(id_train),
+    FOREIGN KEY (id_arret_depart) REFERENCES arret(id_arret),
+    FOREIGN KEY (id_arret_arrivee) REFERENCES arret(id_arret),
+    FOREIGN KEY (id_siege) REFERENCES siege(id_siege)
+);
+
+-- =====================================================
+-- 10. TABLE ticket
+-- =====================================================
+CREATE TABLE ticket (
+    id_ticket INT PRIMARY KEY AUTO_INCREMENT,
+    numero_ticket VARCHAR(30) UNIQUE NOT NULL,
+    date_emission DATETIME DEFAULT CURRENT_TIMESTAMP,
+    prix DECIMAL(12, 2) NOT NULL,
+    statut ENUM('VALIDE', 'UTILISE', 'REMBOURSE', 'ANNULE', 'EXPIRE') DEFAULT 'VALIDE',
+    code_qr VARCHAR(255),
+    id_reservation INT NOT NULL,
+    id_point_vente INT,
+    FOREIGN KEY (id_reservation) REFERENCES reservation(id_reservation) ON DELETE CASCADE,
+    FOREIGN KEY (id_point_vente) REFERENCES point_vente(id_point_vente)
+);
+
+-- =====================================================
+-- 11. TABLE reclamation
+-- =====================================================
+CREATE TABLE reclamation (
+    id_reclamation INT PRIMARY KEY AUTO_INCREMENT,
+    numero_reclamation VARCHAR(30) UNIQUE NOT NULL,
+    date_reclamation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    description TEXT NOT NULL,
+    type ENUM('PLAINTE', 'RECLAMATION', 'SUGGESTION', 'DEMANDE_INFO') DEFAULT 'RECLAMATION',
+    statut ENUM('EN_ATTENTE', 'EN_COURS', 'TRAITEE', 'REJETEE') DEFAULT 'EN_ATTENTE',
+    reponse TEXT,
+    id_voyageur INT NOT NULL,
+    id_point_vente INT,
+    date_traitement DATETIME,
+    FOREIGN KEY (id_voyageur) REFERENCES voyageur(id_voyageur),
+    FOREIGN KEY (id_point_vente) REFERENCES point_vente(id_point_vente)
+);
+
+-- =====================================================
+-- 12. TABLE paiement
+-- =====================================================
+CREATE TABLE paiement (
+    id_paiement INT PRIMARY KEY AUTO_INCREMENT,
+    numero_transaction VARCHAR(50) UNIQUE NOT NULL,
+    montant DECIMAL(12, 2) NOT NULL,
+    date_paiement DATETIME DEFAULT CURRENT_TIMESTAMP,
+    mode_paiement ENUM('ESPECES', 'CARTE', 'MOBILE_MONEY', 'VIREMENT') NOT NULL,
+    statut ENUM('EN_ATTENTE', 'VALIDE', 'ECHOUE', 'REMBOURSE') DEFAULT 'EN_ATTENTE',
+    id_reservation INT NOT NULL,
+    reference_externe VARCHAR(100),
+    FOREIGN KEY (id_reservation) REFERENCES reservation(id_reservation)
+);
+
+-- =====================================================
+-- 13. TABLE utilisateur (pour l'administration)
+-- =====================================================
+CREATE TABLE utilisateur (
+    id_utilisateur INT PRIMARY KEY AUTO_INCREMENT,
+    nom_utilisateur VARCHAR(50) UNIQUE NOT NULL,
+    mot_de_passe VARCHAR(255) NOT NULL,
+    nom VARCHAR(50),
+    prenom VARCHAR(50),
+    email VARCHAR(100),
+    role ENUM('ADMIN', 'AGENT', 'COMPTABLE', 'SUPERVISEUR') DEFAULT 'AGENT',
+    id_agence INT,
+    est_actif BOOLEAN DEFAULT TRUE,
+    derniere_connexion DATETIME,
+    FOREIGN KEY (id_agence) REFERENCES agence(id_agence)
+);
+
+-- =====================================================
+-- 14. TABLE journal_activite
+-- =====================================================
+CREATE TABLE journal_activite (
+    id_log INT PRIMARY KEY AUTO_INCREMENT,
+    date_action DATETIME DEFAULT CURRENT_TIMESTAMP,
+    type_action VARCHAR(50),
+    description TEXT,
+    id_utilisateur INT,
+    ip_adresse VARCHAR(45),
+    FOREIGN KEY (id_utilisateur) REFERENCES utilisateur(id_utilisateur)
+);
+
+-- =====================================================
+-- INSERTION DES DONNÉES DE TEST
+-- =====================================================
+
+-- Insertion des trains
+INSERT INTO train (numero_train, nom_train, capacite_totale, categorie_classe) VALUES
+('TN001', 'Express Tchad-Cameroun', 300, 'PREMIERE'),
+('TN002', 'Étoile du Nord', 280, 'SECONDE'),
+('TN003', 'Confort Plus', 250, 'WAGON_LIT');
+
+-- Insertion des arrêts
+INSERT INTO arret (nom, position_ordre, id_train, latitude, longitude) VALUES
+('Ngaoundéré (Départ)', 0, 1, 7.3167, 13.5833),
+('Mbe', 1, 1, 7.8500, 13.6000),
+('Gouna', 2, 1, 8.2167, 13.5833),
+('Rabinga', 3, 1, 8.6833, 13.6333),
+('Garoua', 4, 1, 9.3000, 13.4000),
+('Guider Moutourwa', 5, 1, 9.9333, 13.9500),
+('Maroua', 6, 1, 10.6000, 14.3167),
+('Koussérie', 7, 1, 11.0833, 15.0333),
+('N\'Djaména (Arrivée)', 8, 1, 12.1333, 15.0500);
+
+-- Insertion des horaires pour le train TN001 (voyage du 15/06/2025)
+INSERT INTO horaire (id_arret, heure_depart, heure_arrivee, date_voyage, duree_minutes) VALUES
+(1, '2025-06-15 07:00:00', '2025-06-15 07:30:00', '2025-06-15', 30),
+(2, '2025-06-15 08:00:00', '2025-06-15 08:15:00', '2025-06-15', 15),
+(3, '2025-06-15 09:00:00', '2025-06-15 09:15:00', '2025-06-15', 15),
+(4, '2025-06-15 10:00:00', '2025-06-15 10:15:00', '2025-06-15', 15),
+(5, '2025-06-15 11:00:00', '2025-06-15 11:30:00', '2025-06-15', 30),
+(6, '2025-06-15 12:00:00', '2025-06-15 12:15:00', '2025-06-15', 15),
+(7, '2025-06-15 13:00:00', '2025-06-15 13:15:00', '2025-06-15', 15),
+(8, '2025-06-15 14:00:00', '2025-06-15 14:30:00', '2025-06-15', 30),
+(9, '2025-06-15 15:00:00', '2025-06-15 15:30:00', '2025-06-15', 30);
+
+-- Insertion des wagons pour le train TN001
+INSERT INTO wagon (numero_wagon, id_train, classe, capacite) VALUES
+(1, 1, 'PREMIERE', 48),
+(2, 1, 'SECONDE', 72),
+(3, 1, 'WAGON_LIT', 36),
+(4, 1, 'SECONDE', 72),
+(5, 1, 'PREMIERE', 48),
+(6, 1, 'SECONDE', 72);
+
+-- Insertion des sièges (exemple pour quelques wagons)
+DELIMITER $$
+CREATE PROCEDURE generer_sieges()
+BEGIN
+    DECLARE v_wagon_id INT;
+    DECLARE v_classe VARCHAR(20);
+    DECLARE v_capacite INT;
+    DECLARE v_i INT;
+    DECLARE done INT DEFAULT FALSE;
+    
+    DECLARE wagon_cursor CURSOR FOR SELECT id_wagon, classe, capacite FROM wagon WHERE id_train = 1;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    OPEN wagon_cursor;
+    
+    read_loop: LOOP
+        FETCH wagon_cursor INTO v_wagon_id, v_classe, v_capacite;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        SET v_i = 1;
+        WHILE v_i <= v_capacite DO
+            INSERT INTO siege (numero_siege, id_wagon, est_occupe) VALUES (v_i, v_wagon_id, FALSE);
+            SET v_i = v_i + 1;
+        END WHILE;
+    END LOOP;
+    
+    CLOSE wagon_cursor;
+END$$
+DELIMITER ;
+
+CALL generer_sieges();
+DROP PROCEDURE generer_sieges;
+
+-- Insertion des agences
+INSERT INTO agence (code_agence, nom_agence, adresse, telephone, email, ville) VALUES
+('AG-NGA-001', 'Agence Centrale Ngaoundéré', 'Avenue de la Gare, Ngaoundéré', '+237 222 11 22 33', 'contact@agence-ngaoundere.com', 'Ngaoundéré'),
+('AG-GAR-001', 'Agence Régionale Garoua', 'Boulevard de l\'Indépendance, Garoua', '+237 222 44 55 66', 'contact@agence-garoua.com', 'Garoua'),
+('AG-MAR-001', 'Agence Nord Extrême', 'Rue des Voyageurs, Maroua', '+237 222 77 88 99', 'contact@agence-maroua.com', 'Maroua'),
+('AG-NDJ-001', 'Agence Centrale N\'Djaména', 'Avenue Charles de Gaulle, N\'Djaména', '+235 66 11 22 33', 'contact@agence-ndjamena.com', 'N\'Djaména');
+
+-- Insertion des points de vente
+INSERT INTO point_vente (code_point_vente, nom_point_vente, adresse, telephone, id_agence) VALUES
+('PV-NGA-001', 'Point de Vente Gare SNCF', 'Gare Centrale, Ngaoundéré', '+237 222 11 22 34', 1),
+('PV-NGA-002', 'Point de Vente Centre Ville', 'Rue Principal, Ngaoundéré', '+237 222 11 22 35', 1),
+('PV-GAR-001', 'Point de Vente Grand Marché', 'Marché Central, Garoua', '+237 222 44 55 67', 2),
+('PV-MAR-001', 'Point de Vente Aéroport', 'Aéroport de Maroua', '+237 222 77 88 90', 3),
+('PV-NDJ-001', 'Point de Vente Ambassade', 'Quartier Administratif, N\'Djaména', '+235 66 11 22 34', 4);
+
+-- Insertion des voyageurs
+INSERT INTO voyageur (numero_voyageur, nom, prenom, email, telephone, adresse, date_naissance, piece_identite, type_piece) VALUES
+('V001', 'Djibril', 'Mohamed', 'mohamed.djibril@email.com', '+237 698 12 34 56', 'Quartier Haussa, Ngaoundéré', '1985-03-15', 'CNI123456', 'CNI'),
+('V002', 'Ali', 'Fatima', 'fatima.ali@email.com', '+237 699 98 76 54', 'Rue de l\'Indépendance, Garoua', '1990-07-22', 'CNI789012', 'CNI'),
+('V003', 'Bello', 'Hamadou', 'hamadou.bello@email.com', '+235 601 23 45 67', 'Quartier Moursal, N\'Djaména', '1988-11-10', 'P12345678', 'PASSEPORT'),
+('V004', 'Moussa', 'Aminatou', 'aminatou.moussa@email.com', '+237 650 11 22 33', 'Camp Yolde, Maroua', '1995-04-05', 'CNI345678', 'CNI'),
+('V005', 'Oumarou', 'Ibrahim', 'ibrahim.oumarou@email.com', '+235 662 33 44 55', 'Quartier Diguel, N\'Djaména', '1982-09-18', 'P87654321', 'PASSEPORT');
+
+-- Insertion des réservations
+INSERT INTO reservation (numero_reservation, date_reservation, statut, prix_total, id_voyageur, id_train, id_arret_depart, id_arret_arrivee, id_siege, classe_choisie, date_voyage) VALUES
+('RES001', '2025-06-01 10:30:00', 'CONFIRMEE', 25000.00, 1, 1, 1, 5, 25, 'PREMIERE', '2025-06-15'),
+('RES002', '2025-06-02 14:15:00', 'CONFIRMEE', 30000.00, 2, 1, 5, 7, 108, 'WAGON_LIT', '2025-06-15'),
+('RES003', '2025-06-03 09:45:00', 'ANNULEE', 12500.00, 3, 1, 2, 8, 89, 'SECONDE', '2025-06-15'),
+('RES004', '2025-06-05 16:20:00', 'CONFIRMEE', 18000.00, 4, 1, 3, 6, 156, 'SECONDE', '2025-06-15'),
+('RES005', '2025-06-08 11:00:00', 'CONFIRMEE', 35000.00, 5, 1, 1, 9, 12, 'WAGON_LIT', '2025-06-15');
+
+-- Mise à jour des sièges occupés selon les réservations confirmées
+UPDATE siege SET est_occupe = TRUE WHERE id_siege IN (25, 108, 156, 12);
+
+-- Insertion des tickets
+INSERT INTO ticket (numero_ticket, date_emission, prix, statut, id_reservation, id_point_vente) VALUES
+('TKT100001', '2025-06-01 10:35:00', 25000.00, 'VALIDE', 1, 1),
+('TKT100002', '2025-06-02 14:20:00', 30000.00, 'VALIDE', 2, 3),
+('TKT100003', '2025-06-03 09:50:00', 12500.00, 'ANNULE', 3, 4),
+('TKT100004', '2025-06-05 16:25:00', 18000.00, 'VALIDE', 4, 2),
+('TKT100005', '2025-06-08 11:05:00', 35000.00, 'VALIDE', 5, 5);
+
+-- Insertion des réclamations
+INSERT INTO reclamation (numero_reclamation, description, type, statut, id_voyageur, id_point_vente) VALUES
+('REC001', 'Le wagon 1ère classe n\'est pas assez climatisé et les sièges sont inconfortables', 'PLAINTE', 'TRAITEE', 1, 1),
+('REC002', 'J\'aimerais qu\'il y ait plus d\'arrêts à Mbe car beaucoup de voyageurs y descendent', 'SUGGESTION', 'EN_ATTENTE', 2, 3),
+('REC003', 'Le personnel du train est très accueillant et serviable !', 'RECLAMATION', 'EN_ATTENTE', 3, 5),
+('REC004', 'La réservation en ligne est difficile à comprendre pour les personnes âgées', 'SUGGESTION', 'EN_COURS', 4, 2),
+('REC005', 'Retard de 30 minutes constaté à l\'arrêt de Garoua la semaine dernière', 'PLAINTE', 'EN_ATTENTE', 5, 4);
+
+-- Insertion des paiements
+INSERT INTO paiement (numero_transaction, montant, mode_paiement, statut, id_reservation) VALUES
+('TRX001', 25000.00, 'MOBILE_MONEY', 'VALIDE', 1),
+('TRX002', 30000.00, 'CARTE', 'VALIDE', 2),
+('TRX003', 12500.00, 'ESPECES', 'REMBOURSE', 3),
+('TRX004', 18000.00, 'MOBILE_MONEY', 'VALIDE', 4),
+('TRX005', 35000.00, 'CARTE', 'VALIDE', 5);
+
+-- Insertion des utilisateurs
+INSERT INTO utilisateur (nom_utilisateur, mot_de_passe, nom, prenom, email, role, id_agence) VALUES
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'System', 'admin@train.com', 'ADMIN', 1),
+('agent_nga', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Pierre', 'Martin', 'pierre@agence-ngaoundere.com', 'AGENT', 1),
+('agent_gar', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Paul', 'Durand', 'paul@agence-garoua.com', 'AGENT', 2);
+
+-- =====================================================
+-- VUES UTILES
+-- =====================================================
+
+-- Vue: Réservations avec détails complets
+CREATE VIEW vue_reservations_completes AS
+SELECT 
+    r.numero_reservation,
+    r.date_reservation,
+    r.statut,
+    r.prix_total,
+    r.date_voyage,
+    CONCAT(v.nom, ' ', v.prenom) AS voyageur,
+    v.email,
+    v.telephone,
+    a_depart.nom AS gare_depart,
+    a_arrivee.nom AS gare_arrivee,
+    t.numero_train,
+    t.nom_train,
+    s.numero_siege,
+    w.numero_wagon,
+    r.classe_choisie
+FROM reservation r
+JOIN voyageur v ON r.id_voyageur = v.id_voyageur
+JOIN train t ON r.id_train = t.id_train
+JOIN arret a_depart ON r.id_arret_depart = a_depart.id_arret
+JOIN arret a_arrivee ON r.id_arret_arrivee = a_arrivee.id_arret
+JOIN siege s ON r.id_siege = s.id_siege
+JOIN wagon w ON s.id_wagon = w.id_wagon;
+
+-- Vue: Tickets avec détails
+CREATE VIEW vue_tickets_complets AS
+SELECT 
+    tk.numero_ticket,
+    tk.date_emission,
+    tk.prix,
+    tk.statut,
+    r.numero_reservation,
+    CONCAT(v.nom, ' ', v.prenom) AS voyageur,
+    a_depart.nom AS depart,
+    a_arrivee.nom AS arrivee,
+    r.date_voyage,
+    pv.nom_point_vente
+FROM ticket tk
+JOIN reservation r ON tk.id_reservation = r.id_reservation
+JOIN voyageur v ON r.id_voyageur = v.id_voyageur
+JOIN arret a_depart ON r.id_arret_depart = a_depart.id_arret
+JOIN arret a_arrivee ON r.id_arret_arrivee = a_arrivee.id_arret
+LEFT JOIN point_vente pv ON tk.id_point_vente = pv.id_point_vente;
+
+-- Vue: Statistiques par agence
+CREATE VIEW vue_stats_agences AS
+SELECT 
+    a.nom_agence,
+    a.ville,
+    COUNT(DISTINCT pv.id_point_vente) AS nb_points_vente,
+    COUNT(tk.id_ticket) AS nb_tickets_vendus,
+    COALESCE(SUM(tk.prix), 0) AS chiffre_affaires,
+    COUNT(DISTINCT r.id_reservation) AS nb_reservations
+FROM agence a
+LEFT JOIN point_vente pv ON a.id_agence = pv.id_agence
+LEFT JOIN ticket tk ON pv.id_point_vente = tk.id_point_vente
+LEFT JOIN reservation r ON tk.id_reservation = r.id_reservation
+GROUP BY a.id_agence;
+
+-- =====================================================
+-- PROCÉDURES STOCKÉES
+-- =====================================================
+
+-- Procédure: Créer une réservation
+DELIMITER $$
+CREATE PROCEDURE creer_reservation(
+    IN p_numero VARCHAR(30),
+    IN p_id_voyageur INT,
+    IN p_id_train INT,
+    IN p_id_arret_depart INT,
+    IN p_id_arret_arrivee INT,
+    IN p_classe VARCHAR(20),
+    IN p_date_voyage DATE,
+    OUT p_id_reservation INT
+)
+BEGIN
+    DECLARE v_prix_base DECIMAL(12,2) DEFAULT 5000;
+    DECLARE v_nb_arrets INT;
+    DECLARE v_coefficient DECIMAL(5,2);
+    DECLARE v_prix_total DECIMAL(12,2);
+    DECLARE v_id_siege INT;
+    
+    -- Calcul du nombre d'arrêts
+    SELECT ABS(a1.position_ordre - a2.position_ordre) INTO v_nb_arrets
+    FROM arret a1, arret a2
+    WHERE a1.id_arret = p_id_arret_depart AND a2.id_arret = p_id_arret_arrivee;
+    
+    -- Coefficient selon la classe
+    CASE p_classe
+        WHEN 'PREMIERE' THEN SET v_coefficient = 1.5;
+        WHEN 'WAGON_LIT' THEN SET v_coefficient = 2.5;
+        ELSE SET v_coefficient = 1.0;
+    END CASE;
+    
+    SET v_prix_total = v_prix_base * v_nb_arrets * v_coefficient;
+    
+    -- Trouver un siège disponible
+    SELECT s.id_siege INTO v_id_siege
+    FROM siege s
+    JOIN wagon w ON s.id_wagon = w.id_wagon
+    WHERE w.id_train = p_id_train 
+      AND w.classe = p_classe 
+      AND s.est_occupe = FALSE
+    LIMIT 1;
+    
+    -- Créer la réservation
+    INSERT INTO reservation (numero_reservation, id_voyageur, id_train, id_arret_depart, 
+                             id_arret_arrivee, id_siege, classe_choisie, prix_total, date_voyage)
+    VALUES (p_numero, p_id_voyageur, p_id_train, p_id_arret_depart, 
+            p_id_arret_arrivee, v_id_siege, p_classe, v_prix_total, p_date_voyage);
+    
+    SET p_id_reservation = LAST_INSERT_ID();
+    
+    -- Occuper le siège
+    UPDATE siege SET est_occupe = TRUE WHERE id_siege = v_id_siege;
+END$$
+DELIMITER ;
+
+-- Procédure: Annuler une réservation
+DELIMITER $$
+CREATE PROCEDURE annuler_reservation(
+    IN p_numero_reservation VARCHAR(30)
+)
+BEGIN
+    DECLARE v_id_siege INT;
+    DECLARE v_statut VARCHAR(20);
+    
+    -- Récupérer le siège et le statut
+    SELECT id_siege, statut INTO v_id_siege, v_statut
+    FROM reservation WHERE numero_reservation = p_numero_reservation;
+    
+    -- Annuler la réservation
+    UPDATE reservation 
+    SET statut = 'ANNULEE' 
+    WHERE numero_reservation = p_numero_reservation;
+    
+    -- Libérer le siège
+    IF v_id_siege IS NOT NULL THEN
+        UPDATE siege SET est_occupe = FALSE WHERE id_siege = v_id_siege;
+    END IF;
+    
+    -- Mettre à jour le ticket associé
+    UPDATE ticket SET statut = 'ANNULE' 
+    WHERE id_reservation = (SELECT id_reservation FROM reservation WHERE numero_reservation = p_numero_reservation);
+END$$
+DELIMITER ;
+
+-- =====================================================
+-- TRIGGERS
+-- =====================================================
+
+-- Trigger: Mettre à jour le statut du ticket quand une réservation est confirmée
+DELIMITER $$
+CREATE TRIGGER after_reservation_confirm
+AFTER UPDATE ON reservation
+FOR EACH ROW
+BEGIN
+    IF NEW.statut = 'CONFIRMEE' AND OLD.statut != 'CONFIRMEE' THEN
+        INSERT INTO journal_activite (type_action, description, date_action)
+        VALUES ('RESERVATION_CONFIRMEE', CONCAT('Réservation ', NEW.numero_reservation, ' confirmée'), NOW());
+    END IF;
+END$$
+DELIMITER ;
+
+-- =====================================================
+-- INDEX POUR OPTIMISATION
+-- =====================================================
+
+CREATE INDEX idx_reservation_voyageur ON reservation(id_voyageur);
+CREATE INDEX idx_reservation_date ON reservation(date_reservation);
+CREATE INDEX idx_reservation_statut ON reservation(statut);
+CREATE INDEX idx_ticket_reservation ON ticket(id_reservation);
+CREATE INDEX idx_ticket_statut ON ticket(statut);
+CREATE INDEX idx_reclamation_voyageur ON reclamation(id_voyageur);
+CREATE INDEX idx_reclamation_statut ON reclamation(statut);
+CREATE INDEX idx_paiement_reservation ON paiement(id_reservation);
+CREATE INDEX idx_horaire_arret ON horaire(id_arret);
+
+-- =====================================================
+-- REQUÊTES UTILES D'EXEMPLE
+-- =====================================================
+
+-- 1. Lister tous les arrêts du train avec horaires
+-- SELECT a.nom, a.position_ordre, h.heure_depart, h.heure_arrivee 
+-- FROM arret a JOIN horaire h ON a.id_arret = h.id_arret 
+-- WHERE a.id_train = 1 ORDER BY a.position_ordre;
+
+-- 2. Voir toutes les réservations d'un voyageur
+-- SELECT * FROM vue_reservations_completes WHERE voyageur LIKE '%Mohamed%';
+
+-- 3. Chiffre d'affaires total
+-- SELECT SUM(prix) AS CA_total, DATE(date_emission) as jour FROM ticket GROUP BY DATE(date_emission);
+
+-- 4. Taux d'occupation des trains
+-- SELECT t.nom_train, 
+--        COUNT(CASE WHEN s.est_occupe = TRUE THEN 1 END) AS sieges_occupes,
+--        COUNT(s.id_siege) AS total_sieges,
+--        ROUND(COUNT(CASE WHEN s.est_occupe = TRUE THEN 1 END) * 100.0 / COUNT(s.id_siege), 2) AS taux_occupation
+-- FROM train t JOIN wagon w ON t.id_train = w.id_train JOIN siege s ON w.id_wagon = s.id_wagon
+-- GROUP BY t.id_train;
+
+-- 5. Réclamations non traitées
+-- SELECT * FROM reclamation WHERE statut IN ('EN_ATTENTE', 'EN_COURS') ORDER BY date_reclamation;
+
+-- =====================================================
+-- FIN DU SCRIPT
+-- =====================================================
