@@ -4,5 +4,5 @@ public enum StatutReclamation {
     EN_ATTENTE,
     CONFIRMEE,
     ANNULEE,
-    REMBOURSEE
+    TRAITEE
 }

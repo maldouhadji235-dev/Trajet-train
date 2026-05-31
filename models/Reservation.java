@@ -1,8 +1,8 @@
 package models;
 
-import java.time.LocalDateTime;
-import enums.StatutReservation;
 import enums.ClasseVoyage;
+import enums.StatutReservation;
+import java.time.LocalDateTime;
 
 public class Reservation {
     private String idReservation;
