@@ -4,5 +4,7 @@ public enum StatutReservation {
     VALIDE,
     UTILISE,
     REMBOURSE,
-    ANNULE
+    ANNULEE, 
+    EN_ATTENTE,
+    CONFIRMEE
 }
